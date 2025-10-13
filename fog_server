@@ -1,0 +1,40 @@
+from flask import Flask, request, jsonify
+import torch
+import threading
+import requests
+
+app = Flask(_name_)
+updates = []
+num_expected = 1
+
+@app.route('/submit_update', methods=['POST'])
+def receive_update():
+    data = request.json
+    print("\n" + "="*70)
+    print("🌫  FOG: RECEIVED DATA FROM EDGE DEVICE")
+    print(f"Keys: {list(data.keys())}")
+    total_nums = sum(len(v) if isinstance(v, list) else 1 for v in data.values())
+    size_kb = len(request.get_data()) / 1024
+    print(f"Total numbers (model weights): {total_nums}")
+    print(f"Data size: {size_kb:.1f} KB")
+    print("❌ NO PHOTO DETECTED — ONLY NUMERICAL UPDATES!")
+    print("="*70 + "\n")
+
+    weights = {k: torch.tensor(v) for k, v in data.items()}
+    updates.append(weights)
+
+    if len(updates) >= num_expected:
+        threading.Thread(target=send_to_cloud).start()
+        updates.clear()
+    return jsonify({"status": "fog received"})
+
+def send_to_cloud():
+    avg = {}
+    for key in updates[0]:
+        avg[key] = torch.stack([u[key] for u in updates]).mean(dim=0)
+    serial = {k: v.tolist() for k, v in avg.items()}
+    requests.post("http://localhost:8000/receive_from_fog", json=serial)
+
+if _name_ == '_main_':
+    print("📡 Fog server running on http://0.0.0.0:5000")
+    app.run(host='0.0.0.0', port=5000, debug=False)
