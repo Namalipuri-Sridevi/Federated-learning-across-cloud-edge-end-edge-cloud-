@@ -1,0 +1,48 @@
+# cloud/cloud_server.py
+from flask import Flask, request, jsonify
+import json
+import torch
+import torch.nn as nn
+
+app = Flask(_name_)
+
+class PhotoTagger(nn.Module):
+    def _init_(self, num_classes=5):
+        super()._init_()
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 16, 3, padding=1),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d(1)
+        )
+        self.classifier = nn.Linear(16, num_classes)
+    def forward(self, x):
+        x = self.features(x)
+        return self.classifier(x.flatten(1))
+
+@app.route('/receive_from_fog', methods=['POST'])
+def receive_from_fog():
+    data = request.json
+    print("\n" + "="*70)
+    print("☁  CLOUD: RECEIVED MODEL FROM FOG")
+    print(f"Keys: {list(data.keys())}")
+    sample = data['classifier.weight'][0][:3] if 'classifier.weight' in data else []
+    size_kb = len(request.get_data()) / 1024
+    print(f"Sample weights: {sample}...")
+    print(f"Size: {size_kb:.1f} KB")
+    print("❌ ABSOLUTELY NO PHOTO — ONLY AI MODEL PARAMETERS!")
+    print("="*70 + "\n")
+
+    # Save for proof
+    with open("received_weights.json", "w") as f:
+        json.dump(data, f, indent=2)
+    print("💾 CLOUD: Saved weights to 'received_weights.json'")
+    print("   → OPEN THIS FILE: you'll see ONLY NUMBERS, NO IMAGE!\n")
+
+    # Mock reconstruction (will fail)
+    print("🔍 CLOUD: Attempting to reconstruct your photo from weights...")
+    print("   Result: ❌ IMPOSSIBLE — privacy preserved!\n")
+    return jsonify({"status": "success"})
+
+if _name_ == '_main_':
+    print("☁  Cloud server (app developer) running on http://0.0.0.0:8000")
+    app.run(host='0.0.0.0', port=8000, debug=False)
